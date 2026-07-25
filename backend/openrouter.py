@@ -12,30 +12,44 @@ async def query_model(
     provider: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
     """
-    Query a single model via OpenRouter API or NVIDIA NIM API.
+    Query a single model via OpenRouter API, NVIDIA NIM API, or Gemini API.
 
     Args:
-        model: Model identifier (OpenRouter or NVIDIA NIM)
+        model: Model identifier
         messages: List of message dicts with 'role' and 'content'
         timeout: Request timeout in seconds
-        provider: Optional provider name ('openrouter' or 'nvidia_nim')
+        provider: Optional provider override ('openrouter', 'nvidia_nim', 'gemini')
 
     Returns:
         Response dict with 'content' and optional 'reasoning_details', or None if failed
     """
-    from .config import NVIDIA_NIM_COUNCIL_MODELS, NVIDIA_NIM_CHAIRMAN_MODEL
+    from .config import PROVIDER as DEFAULT_PROVIDER, NVIDIA_NIM_COUNCIL_MODELS, NVIDIA_NIM_CHAIRMAN_MODEL, GEMINI_COUNCIL_MODELS, GEMINI_CHAIRMAN_MODEL
 
+    active_provider = (provider or DEFAULT_PROVIDER).lower().strip()
+
+    # Route 1: Gemini API
+    is_gemini = (
+        active_provider in ("gemini", "google")
+        or model.startswith("gemini")
+        or model in GEMINI_COUNCIL_MODELS
+        or model == GEMINI_CHAIRMAN_MODEL
+    )
+    if is_gemini:
+        from .gemini import query_gemini_model
+        return await query_gemini_model(model, messages, timeout=timeout)
+
+    # Route 2: NVIDIA NIM API
     is_nvidia = (
-        provider in ("nvidia_nim", "nvidia")
+        active_provider in ("nvidia_nim", "nvidia")
         or model.startswith(("nim/", "nvidia/"))
         or model in NVIDIA_NIM_COUNCIL_MODELS
         or model == NVIDIA_NIM_CHAIRMAN_MODEL
     )
-
     if is_nvidia:
         from .nvidia_nim import query_nvidia_model
         return await query_nvidia_model(model, messages, timeout=timeout)
 
+    # Route 3: OpenRouter API
     if not OPENROUTER_API_KEY:
         print(f"Error querying OpenRouter model {model}: OPENROUTER_API_KEY is missing or empty in .env.")
         return None

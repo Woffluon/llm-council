@@ -12,22 +12,15 @@ from .config import (
 )
 
 
-def get_models_for_provider(provider: str = "openrouter") -> Tuple[List[str], str]:
-    if provider == "nvidia_nim" or provider == "nvidia":
-        return NVIDIA_NIM_COUNCIL_MODELS, NVIDIA_NIM_CHAIRMAN_MODEL
-    return OPENROUTER_COUNCIL_MODELS, OPENROUTER_CHAIRMAN_MODEL
-
-
 def resolve_models(
-    provider: str = "openrouter",
+    provider: Optional[str] = None,
     custom_council_models: Optional[List[str]] = None,
     custom_chairman_model: Optional[str] = None
 ) -> Tuple[List[str], str]:
-    default_council, default_chairman = get_models_for_provider(provider)
     council = [m.strip() for m in custom_council_models if m and m.strip()] if custom_council_models else []
     if not council:
-        council = default_council
-    chairman = custom_chairman_model.strip() if custom_chairman_model and custom_chairman_model.strip() else default_chairman
+        council = COUNCIL_MODELS
+    chairman = custom_chairman_model.strip() if custom_chairman_model and custom_chairman_model.strip() else CHAIRMAN_MODEL
     return council, chairman
 
 
@@ -320,12 +313,8 @@ Title:"""
 
     messages = [{"role": "user", "content": title_prompt}]
 
-    # Pick fast title model based on provider
-    if provider in ("nvidia_nim", "nvidia"):
-        title_model = "meta/llama-3.3-70b-instruct"
-    else:
-        title_model = "google/gemini-2.5-flash"
-
+    # Use CHAIRMAN_MODEL for title generation
+    title_model = CHAIRMAN_MODEL
     response = await query_model(title_model, messages, timeout=30.0, provider=provider)
 
     if response is None:

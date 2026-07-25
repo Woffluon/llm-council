@@ -4,7 +4,7 @@
 
 The idea of this repo is that instead of asking a question to a single LLM provider, you can group multiple models into your "LLM Council". This repository provides a simple, local web application that queries multiple LLMs, asks them to review and rank each other's responses anonymously, and synthesizes a final answer using a designated Chairman model.
 
-The application supports both **OpenRouter API** and **NVIDIA NIM API** with dynamic provider selection directly from the user interface.
+The application supports **Google Gemini API**, **NVIDIA NIM API**, and **OpenRouter API** with complete configuration managed via `.env`.
 
 In a bit more detail, here is what happens when you submit a query:
 
@@ -14,11 +14,9 @@ In a bit more detail, here is what happens when you submit a query:
 
 ## Features
 
-- **Multi-Provider Support**: Supports both **OpenRouter** and **NVIDIA NIM API** endpoints out of the box.
-- **Dynamic Provider Switcher**: Select between OpenRouter and NVIDIA NIM providers per-conversation directly from the UI.
-- **Model Customization UI**: Customize individual council member models (Stage 1 & 2) and the chairman model (Stage 3) dynamically per query directly in the interface.
+- **Multi-Provider Support**: Built-in support for **Google Gemini API**, **NVIDIA NIM API**, and **OpenRouter API**.
+- **100% Environment Configurable**: Provider selection, API keys, council models, and chairman models are all managed directly in `.env`.
 - **Windows & Unix Launchers**: Easy one-click startup scripts (`start.bat` for Windows with error handling, `start.sh` for Linux/macOS).
-- **Preset Council Configurations**: Curated default models for each provider (e.g. OpenAI, Gemini, Claude, GLM, Llama 3.3, Nemotron, DeepSeek R1).
 
 ## Setup
 
@@ -38,7 +36,7 @@ npm install
 cd ..
 ```
 
-### 2. Configure API Keys
+### 2. Configure Environment (`.env`)
 
 Copy `.env.example` to create your `.env` file:
 
@@ -46,38 +44,22 @@ Copy `.env.example` to create your `.env` file:
 cp .env.example .env
 ```
 
-Edit `.env` and insert your API keys:
+Edit `.env` to set your desired provider, API key, and models:
 
 ```env
-# OpenRouter API Key (https://openrouter.ai/)
+# Active Provider: openrouter | nvidia_nim | gemini
+PROVIDER=gemini
+
+# API Keys
 OPENROUTER_API_KEY=sk-or-v1-...
-
-# NVIDIA NIM API Key (https://build.nvidia.com/)
 NVIDIA_API_KEY=nvapi-...
-```
+GEMINI_API_KEY=AIzaSy...
 
-### 3. Model Configuration
+# Council Models (comma-separated list of 4 models)
+COUNCIL_MODELS=gemini-2.5-pro,gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-pro
 
-Edit `backend/config.py` to customize the models for each provider:
-
-```python
-# OpenRouter preset
-OPENROUTER_COUNCIL_MODELS = [
-    "openai/gpt-4o",
-    "google/gemini-2.5-pro",
-    "anthropic/claude-3.5-sonnet",
-    "z-ai/glm-5.2",
-]
-OPENROUTER_CHAIRMAN_MODEL = "google/gemini-2.5-pro"
-
-# NVIDIA NIM preset
-NVIDIA_NIM_COUNCIL_MODELS = [
-    "nvidia/llama-3.1-nemotron-70b-instruct",
-    "meta/llama-3.3-70b-instruct",
-    "mistralai/mistral-large-2-instruct",
-    "deepseek-ai/deepseek-r1",
-]
-NVIDIA_NIM_CHAIRMAN_MODEL = "meta/llama-3.3-70b-instruct"
+# Chairman Model (synthesizes final response)
+CHAIRMAN_MODEL=gemini-2.5-pro
 ```
 
 ## Running the Application
@@ -109,7 +91,7 @@ Then open `http://localhost:5173` in your browser.
 
 ## Tech Stack
 
-- **Backend:** FastAPI (Python 3.10+), async httpx, OpenRouter API & NVIDIA NIM API
+- **Backend:** FastAPI (Python 3.10+), async httpx, Google Gemini API, NVIDIA NIM API, OpenRouter API
 - **Frontend:** React + Vite, react-markdown for rendering
 - **Storage:** JSON files in `data/conversations/`
 - **Package Management:** uv for Python, npm for JavaScript
