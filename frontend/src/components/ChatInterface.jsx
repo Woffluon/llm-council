@@ -5,6 +5,8 @@ import Stage2 from './Stage2';
 import Stage3 from './Stage3';
 import './ChatInterface.css';
 
+import { api } from '../api';
+
 export default function ChatInterface({
   conversation,
   onSendMessage,
@@ -12,7 +14,48 @@ export default function ChatInterface({
 }) {
   const [input, setInput] = useState('');
   const [provider, setProvider] = useState('openrouter');
+  const [showCustomModels, setShowCustomModels] = useState(false);
+  const [councilModels, setCouncilModels] = useState(['', '', '', '']);
+  const [chairmanModel, setChairmanModel] = useState('');
+  const [presets, setPresets] = useState(null);
   const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    loadModelPresets();
+  }, []);
+
+  useEffect(() => {
+    if (presets && presets[provider]) {
+      setCouncilModels([...presets[provider].council_models]);
+      setChairmanModel(presets[provider].chairman_model);
+    }
+  }, [provider, presets]);
+
+  const loadModelPresets = async () => {
+    try {
+      const data = await api.getModels();
+      setPresets(data);
+      if (data && data[provider]) {
+        setCouncilModels([...data[provider].council_models]);
+        setChairmanModel(data[provider].chairman_model);
+      }
+    } catch (e) {
+      console.error('Failed to load model presets:', e);
+    }
+  };
+
+  const handleCouncilModelChange = (index, value) => {
+    const updated = [...councilModels];
+    updated[index] = value;
+    setCouncilModels(updated);
+  };
+
+  const handleResetModels = () => {
+    if (presets && presets[provider]) {
+      setCouncilModels([...presets[provider].council_models]);
+      setChairmanModel(presets[provider].chairman_model);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -25,7 +68,12 @@ export default function ChatInterface({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
-      onSendMessage(input, provider);
+      const filteredCouncil = councilModels.filter((m) => m && m.trim().length > 0);
+      onSendMessage(input, {
+        provider,
+        councilModels: filteredCouncil.length > 0 ? filteredCouncil : null,
+        chairmanModel: chairmanModel.trim() || null,
+      });
       setInput('');
     }
   };
@@ -124,19 +172,66 @@ export default function ChatInterface({
       {conversation.messages.length === 0 && (
         <form className="input-form" onSubmit={handleSubmit}>
           <div className="input-controls">
-            <div className="provider-selector">
-              <label htmlFor="provider-select" className="provider-label">Provider:</label>
-              <select
-                id="provider-select"
-                className="provider-select"
-                value={provider}
-                onChange={(e) => setProvider(e.target.value)}
-                disabled={isLoading}
+            <div className="provider-selector-row">
+              <div className="provider-selector">
+                <label htmlFor="provider-select" className="provider-label">Provider:</label>
+                <select
+                  id="provider-select"
+                  className="provider-select"
+                  value={provider}
+                  onChange={(e) => setProvider(e.target.value)}
+                  disabled={isLoading}
+                >
+                  <option value="openrouter">OpenRouter (GPT-4o, Gemini, Claude, GLM)</option>
+                  <option value="nvidia_nim">NVIDIA NIM (Nemotron, Llama 3.3, Mistral, DeepSeek)</option>
+                </select>
+              </div>
+              <button
+                type="button"
+                className="toggle-models-button"
+                onClick={() => setShowCustomModels(!showCustomModels)}
               >
-                <option value="openrouter">OpenRouter (GPT-4o, Gemini, Claude, GLM)</option>
-                <option value="nvidia_nim">NVIDIA NIM (Nemotron, Llama 3.3, Mistral, DeepSeek)</option>
-              </select>
+                {showCustomModels ? '⚙ Hide Custom Models' : '⚙ Customize Models'}
+              </button>
             </div>
+
+            {showCustomModels && (
+              <div className="custom-models-panel">
+                <div className="panel-header">
+                  <span className="panel-title">Council Models (Stage 1 & 2)</span>
+                  <button type="button" className="reset-models-button" onClick={handleResetModels}>
+                    Reset Defaults
+                  </button>
+                </div>
+                <div className="models-grid">
+                  {councilModels.map((model, idx) => (
+                    <div key={idx} className="model-input-group">
+                      <label className="model-label">Member {idx + 1}:</label>
+                      <input
+                        type="text"
+                        className="model-input"
+                        value={model}
+                        onChange={(e) => handleCouncilModelChange(idx, e.target.value)}
+                        placeholder={`Model ${idx + 1} identifier`}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="chairman-input-group">
+                  <label className="model-label">Chairman Model (Stage 3 Synthesis):</label>
+                  <input
+                    type="text"
+                    className="model-input"
+                    value={chairmanModel}
+                    onChange={(e) => setChairmanModel(e.target.value)}
+                    placeholder="Chairman model identifier"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="input-row">
               <textarea
                 className="message-input"

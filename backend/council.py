@@ -1,6 +1,6 @@
 """3-stage LLM Council orchestration."""
 
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from .openrouter import query_models_parallel, query_model
 from .config import (
     COUNCIL_MODELS,
@@ -18,19 +18,37 @@ def get_models_for_provider(provider: str = "openrouter") -> Tuple[List[str], st
     return OPENROUTER_COUNCIL_MODELS, OPENROUTER_CHAIRMAN_MODEL
 
 
-async def stage1_collect_responses(user_query: str, provider: str = "openrouter") -> List[Dict[str, Any]]:
+def resolve_models(
+    provider: str = "openrouter",
+    custom_council_models: Optional[List[str]] = None,
+    custom_chairman_model: Optional[str] = None
+) -> Tuple[List[str], str]:
+    default_council, default_chairman = get_models_for_provider(provider)
+    council = [m.strip() for m in custom_council_models if m and m.strip()] if custom_council_models else []
+    if not council:
+        council = default_council
+    chairman = custom_chairman_model.strip() if custom_chairman_model and custom_chairman_model.strip() else default_chairman
+    return council, chairman
+
+
+async def stage1_collect_responses(
+    user_query: str,
+    provider: str = "openrouter",
+    custom_council_models: Optional[List[str]] = None
+) -> List[Dict[str, Any]]:
     """
     Stage 1: Collect individual responses from all council models.
 
     Args:
         user_query: The user's question
         provider: Provider identifier ('openrouter' or 'nvidia_nim')
+        custom_council_models: Optional custom list of model identifiers
 
     Returns:
         List of dicts with 'model' and 'response' keys
     """
     messages = [{"role": "user", "content": user_query}]
-    council_models, _ = get_models_for_provider(provider)
+    council_models, _ = resolve_models(provider, custom_council_models=custom_council_models)
 
     # Query all models in parallel
     responses = await query_models_parallel(council_models, messages)
@@ -50,7 +68,8 @@ async def stage1_collect_responses(user_query: str, provider: str = "openrouter"
 async def stage2_collect_rankings(
     user_query: str,
     stage1_results: List[Dict[str, Any]],
-    provider: str = "openrouter"
+    provider: str = "openrouter",
+    custom_council_models: Optional[List[str]] = None
 ) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
     """
     Stage 2: Each model ranks the anonymized responses.
@@ -59,6 +78,7 @@ async def stage2_collect_rankings(
         user_query: The original user query
         stage1_results: Results from Stage 1
         provider: Provider identifier ('openrouter' or 'nvidia_nim')
+        custom_council_models: Optional custom list of model identifiers
 
     Returns:
         Tuple of (rankings list, label_to_model mapping)
@@ -111,7 +131,7 @@ Now provide your evaluation and ranking:"""
 
     messages = [{"role": "user", "content": ranking_prompt}]
 
-    council_models, _ = get_models_for_provider(provider)
+    council_models, _ = resolve_models(provider, custom_council_models=custom_council_models)
 
     # Get rankings from all council models in parallel
     responses = await query_models_parallel(council_models, messages)
@@ -135,7 +155,8 @@ async def stage3_synthesize_final(
     user_query: str,
     stage1_results: List[Dict[str, Any]],
     stage2_results: List[Dict[str, Any]],
-    provider: str = "openrouter"
+    provider: str = "openrouter",
+    custom_chairman_model: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Stage 3: Chairman synthesizes final response.
@@ -145,6 +166,7 @@ async def stage3_synthesize_final(
         stage1_results: Individual model responses from Stage 1
         stage2_results: Rankings from Stage 2
         provider: Provider identifier ('openrouter' or 'nvidia_nim')
+        custom_chairman_model: Optional custom chairman model identifier
 
     Returns:
         Dict with 'model' and 'response' keys
@@ -179,7 +201,7 @@ Provide a clear, well-reasoned final answer that represents the council's collec
 
     messages = [{"role": "user", "content": chairman_prompt}]
 
-    _, chairman_model = get_models_for_provider(provider)
+    _, chairman_model = resolve_models(provider, custom_chairman_model=custom_chairman_model)
 
     # Query the chairman model
     response = await query_model(chairman_model, messages)
@@ -316,19 +338,30 @@ Title:"""
     return title
 
 
-async def run_full_council(user_query: str, provider: str = "openrouter") -> Tuple[List, List, Dict, Dict]:
+async def run_full_council(
+    user_query: str,
+    provider: str = "openrouter",
+    custom_council_models: Optional[List[str]] = None,
+    custom_chairman_model: Optional[str] = None
+) -> Tuple[List, List, Dict, Dict]:
     """
     Run the complete 3-stage council process.
 
     Args:
         user_query: The user's question
         provider: Provider identifier ('openrouter' or 'nvidia_nim')
+        custom_council_models: Optional custom list of model identifiers
+        custom_chairman_model: Optional custom chairman model identifier
 
     Returns:
         Tuple of (stage1_results, stage2_results, stage3_result, metadata)
     """
     # Stage 1: Collect individual responses
-    stage1_results = await stage1_collect_responses(user_query, provider=provider)
+    stage1_results = await stage1_collect_responses(
+        user_query,
+        provider=provider,
+        custom_council_models=custom_council_models
+    )
 
     # If no models responded successfully, return error
     if not stage1_results:
@@ -338,7 +371,12 @@ async def run_full_council(user_query: str, provider: str = "openrouter") -> Tup
         }, {}
 
     # Stage 2: Collect rankings
-    stage2_results, label_to_model = await stage2_collect_rankings(user_query, stage1_results, provider=provider)
+    stage2_results, label_to_model = await stage2_collect_rankings(
+        user_query,
+        stage1_results,
+        provider=provider,
+        custom_council_models=custom_council_models
+    )
 
     # Calculate aggregate rankings
     aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
@@ -348,7 +386,8 @@ async def run_full_council(user_query: str, provider: str = "openrouter") -> Tup
         user_query,
         stage1_results,
         stage2_results,
-        provider=provider
+        provider=provider,
+        custom_chairman_model=custom_chairman_model
     )
 
     # Prepare metadata
