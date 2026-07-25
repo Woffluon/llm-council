@@ -13,14 +13,14 @@ NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
 
 # Council members - list of model identifiers (OpenRouter or NVIDIA NIM)
 COUNCIL_MODELS = [
-    "openai/gpt-5.1",
-    "google/gemini-3-pro-preview",
-    "anthropic/claude-sonnet-4.5",
-    "x-ai/grok-4",
+    "z-ai/glm-5.2",
+    "z-ai/glm-5.2",
+    "z-ai/glm-5.2",
+    "z-ai/glm-5.2",
 ]
 
 # Chairman model - synthesizes final response
-CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
+CHAIRMAN_MODEL = "z-ai/glm-5.2"
 
 # API endpoints
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
