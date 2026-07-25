@@ -11,16 +11,20 @@ async def query_model(
     timeout: float = 120.0
 ) -> Optional[Dict[str, Any]]:
     """
-    Query a single model via OpenRouter API.
+    Query a single model via OpenRouter API or NVIDIA NIM API.
 
     Args:
-        model: OpenRouter model identifier (e.g., "openai/gpt-4o")
+        model: Model identifier (OpenRouter or NVIDIA NIM)
         messages: List of message dicts with 'role' and 'content'
         timeout: Request timeout in seconds
 
     Returns:
         Response dict with 'content' and optional 'reasoning_details', or None if failed
     """
+    if model.startswith("nim/") or model.startswith("nvidia/"):
+        from .nvidia_nim import query_nvidia_model
+        return await query_nvidia_model(model, messages, timeout=timeout)
+
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
@@ -51,6 +55,7 @@ async def query_model(
     except Exception as e:
         print(f"Error querying model {model}: {e}")
         return None
+
 
 
 async def query_models_parallel(
