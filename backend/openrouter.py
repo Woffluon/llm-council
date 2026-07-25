@@ -8,7 +8,8 @@ from .config import OPENROUTER_API_KEY, OPENROUTER_API_URL
 async def query_model(
     model: str,
     messages: List[Dict[str, str]],
-    timeout: float = 120.0
+    timeout: float = 120.0,
+    provider: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
     """
     Query a single model via OpenRouter API or NVIDIA NIM API.
@@ -17,13 +18,27 @@ async def query_model(
         model: Model identifier (OpenRouter or NVIDIA NIM)
         messages: List of message dicts with 'role' and 'content'
         timeout: Request timeout in seconds
+        provider: Optional provider name ('openrouter' or 'nvidia_nim')
 
     Returns:
         Response dict with 'content' and optional 'reasoning_details', or None if failed
     """
-    if model.startswith("nim/") or model.startswith("nvidia/"):
+    from .config import NVIDIA_NIM_COUNCIL_MODELS, NVIDIA_NIM_CHAIRMAN_MODEL
+
+    is_nvidia = (
+        provider in ("nvidia_nim", "nvidia")
+        or model.startswith(("nim/", "nvidia/"))
+        or model in NVIDIA_NIM_COUNCIL_MODELS
+        or model == NVIDIA_NIM_CHAIRMAN_MODEL
+    )
+
+    if is_nvidia:
         from .nvidia_nim import query_nvidia_model
         return await query_nvidia_model(model, messages, timeout=timeout)
+
+    if not OPENROUTER_API_KEY:
+        print(f"Error querying OpenRouter model {model}: OPENROUTER_API_KEY is missing or empty in .env.")
+        return None
 
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -57,17 +72,18 @@ async def query_model(
         return None
 
 
-
 async def query_models_parallel(
     models: List[str],
-    messages: List[Dict[str, str]]
+    messages: List[Dict[str, str]],
+    provider: Optional[str] = None
 ) -> Dict[str, Optional[Dict[str, Any]]]:
     """
     Query multiple models in parallel.
 
     Args:
-        models: List of OpenRouter model identifiers
+        models: List of model identifiers
         messages: List of message dicts to send to each model
+        provider: Optional provider name ('openrouter' or 'nvidia_nim')
 
     Returns:
         Dict mapping model identifier to response dict (or None if failed)
@@ -75,7 +91,7 @@ async def query_models_parallel(
     import asyncio
 
     # Create tasks for all models
-    tasks = [query_model(model, messages) for model in models]
+    tasks = [query_model(model, messages, provider=provider) for model in models]
 
     # Wait for all to complete
     responses = await asyncio.gather(*tasks)

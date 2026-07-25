@@ -51,7 +51,7 @@ async def stage1_collect_responses(
     council_models, _ = resolve_models(provider, custom_council_models=custom_council_models)
 
     # Query all models in parallel
-    responses = await query_models_parallel(council_models, messages)
+    responses = await query_models_parallel(council_models, messages, provider=provider)
 
     # Format results
     stage1_results = []
@@ -134,7 +134,7 @@ Now provide your evaluation and ranking:"""
     council_models, _ = resolve_models(provider, custom_council_models=custom_council_models)
 
     # Get rankings from all council models in parallel
-    responses = await query_models_parallel(council_models, messages)
+    responses = await query_models_parallel(council_models, messages, provider=provider)
 
     # Format results
     stage2_results = []
@@ -204,7 +204,7 @@ Provide a clear, well-reasoned final answer that represents the council's collec
     _, chairman_model = resolve_models(provider, custom_chairman_model=custom_chairman_model)
 
     # Query the chairman model
-    response = await query_model(chairman_model, messages)
+    response = await query_model(chairman_model, messages, provider=provider)
 
     if response is None:
         # Fallback if chairman fails
@@ -214,7 +214,7 @@ Provide a clear, well-reasoned final answer that represents the council's collec
         }
 
     return {
-        "model": CHAIRMAN_MODEL,
+        "model": chairman_model,
         "response": response.get('content', '')
     }
 
