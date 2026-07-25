@@ -2,23 +2,28 @@
 
 ![llmcouncil](header.jpg)
 
-The idea of this repo is that instead of asking a question to your favorite LLM provider (e.g. OpenAI GPT 5.1, Google Gemini 3.0 Pro, Anthropic Claude Sonnet 4.5, xAI Grok 4, eg.c), you can group them into your "LLM Council". This repo is a simple, local web app that essentially looks like ChatGPT except it uses OpenRouter to send your query to multiple LLMs, it then asks them to review and rank each other's work, and finally a Chairman LLM produces the final response.
+The idea of this repo is that instead of asking a question to a single LLM provider, you can group multiple models into your "LLM Council". This repository provides a simple, local web application that queries multiple LLMs, asks them to review and rank each other's responses anonymously, and synthesizes a final answer using a designated Chairman model.
+
+The application supports both **OpenRouter API** and **NVIDIA NIM API** with dynamic provider selection directly from the user interface.
 
 In a bit more detail, here is what happens when you submit a query:
 
-1. **Stage 1: First opinions**. The user query is given to all LLMs individually, and the responses are collected. The individual responses are shown in a "tab view", so that the user can inspect them all one by one.
-2. **Stage 2: Review**. Each individual LLM is given the responses of the other LLMs. Under the hood, the LLM identities are anonymized so that the LLM can't play favorites when judging their outputs. The LLM is asked to rank them in accuracy and insight.
-3. **Stage 3: Final response**. The designated Chairman of the LLM Council takes all of the model's responses and compiles them into a single final answer that is presented to the user.
+1. **Stage 1: First opinions**. The user query is given to all council LLMs individually, and responses are collected and displayed in tabs.
+2. **Stage 2: Review**. Each model reviews and ranks the anonymized responses of all other models by accuracy and insight.
+3. **Stage 3: Final response**. The designated Chairman model synthesizes all responses and peer rankings into a comprehensive final answer.
 
-## Vibe Code Alert
+## Features
 
-This project was 99% vibe coded as a fun Saturday hack because I wanted to explore and evaluate a number of LLMs side by side in the process of [reading books together with LLMs](https://x.com/karpathy/status/1990577951671509438). It's nice and useful to see multiple responses side by side, and also the cross-opinions of all LLMs on each other's outputs. I'm not going to support it in any way, it's provided here as is for other people's inspiration and I don't intend to improve it. Code is ephemeral now and libraries are over, ask your LLM to change it in whatever way you like.
+- **Multi-Provider Support**: Supports both **OpenRouter** and **NVIDIA NIM API** endpoints out of the box.
+- **Dynamic Provider Switcher**: Select between OpenRouter and NVIDIA NIM providers per-conversation directly from the UI.
+- **Windows & Unix Launchers**: Easy one-click startup scripts (`start.bat` for Windows with error handling, `start.sh` for Linux/macOS).
+- **Preset Council Configurations**: Curated default models for each provider (e.g. OpenAI, Gemini, Claude, GLM, Llama 3.3, Nemotron, DeepSeek R1).
 
 ## Setup
 
 ### 1. Install Dependencies
 
-The project uses [uv](https://docs.astral.sh/uv/) for project management.
+The project uses [uv](https://docs.astral.sh/uv/) for Python project management.
 
 **Backend:**
 ```bash
@@ -32,39 +37,61 @@ npm install
 cd ..
 ```
 
-### 2. Configure API Key
+### 2. Configure API Keys
 
-Create a `.env` file in the project root:
+Copy `.env.example` to create your `.env` file:
 
 ```bash
-OPENROUTER_API_KEY=sk-or-v1-...
+cp .env.example .env
 ```
 
-Get your API key at [openrouter.ai](https://openrouter.ai/). Make sure to purchase the credits you need, or sign up for automatic top up.
+Edit `.env` and insert your API keys:
 
-### 3. Configure Models (Optional)
+```env
+# OpenRouter API Key (https://openrouter.ai/)
+OPENROUTER_API_KEY=sk-or-v1-...
 
-Edit `backend/config.py` to customize the council:
+# NVIDIA NIM API Key (https://build.nvidia.com/)
+NVIDIA_API_KEY=nvapi-...
+```
+
+### 3. Model Configuration
+
+Edit `backend/config.py` to customize the models for each provider:
 
 ```python
-COUNCIL_MODELS = [
-    "openai/gpt-5.1",
-    "google/gemini-3-pro-preview",
-    "anthropic/claude-sonnet-4.5",
-    "x-ai/grok-4",
+# OpenRouter preset
+OPENROUTER_COUNCIL_MODELS = [
+    "openai/gpt-4o",
+    "google/gemini-2.5-pro",
+    "anthropic/claude-3.5-sonnet",
+    "z-ai/glm-5.2",
 ]
+OPENROUTER_CHAIRMAN_MODEL = "google/gemini-2.5-pro"
 
-CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
+# NVIDIA NIM preset
+NVIDIA_NIM_COUNCIL_MODELS = [
+    "nvidia/llama-3.1-nemotron-70b-instruct",
+    "meta/llama-3.3-70b-instruct",
+    "mistralai/mistral-large-2-instruct",
+    "deepseek-ai/deepseek-r1",
+]
+NVIDIA_NIM_CHAIRMAN_MODEL = "meta/llama-3.3-70b-instruct"
 ```
 
 ## Running the Application
 
-**Option 1: Use the start script**
+**On Windows:**
+```cmd
+start.bat
+```
+
+**On Linux / macOS:**
 ```bash
 ./start.sh
 ```
 
-**Option 2: Run manually**
+**Manual Execution:**
 
 Terminal 1 (Backend):
 ```bash
@@ -77,11 +104,11 @@ cd frontend
 npm run dev
 ```
 
-Then open http://localhost:5173 in your browser.
+Then open `http://localhost:5173` in your browser.
 
 ## Tech Stack
 
-- **Backend:** FastAPI (Python 3.10+), async httpx, OpenRouter API
+- **Backend:** FastAPI (Python 3.10+), async httpx, OpenRouter API & NVIDIA NIM API
 - **Frontend:** React + Vite, react-markdown for rendering
 - **Storage:** JSON files in `data/conversations/`
 - **Package Management:** uv for Python, npm for JavaScript
