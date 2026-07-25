@@ -300,12 +300,13 @@ def calculate_aggregate_rankings(
     return aggregate
 
 
-async def generate_conversation_title(user_query: str) -> str:
+async def generate_conversation_title(user_query: str, provider: str = "openrouter") -> str:
     """
     Generate a short title for a conversation based on the first user message.
 
     Args:
         user_query: The first user message
+        provider: Provider identifier ('openrouter' or 'nvidia_nim')
 
     Returns:
         A short title (3-5 words)
@@ -319,8 +320,13 @@ Title:"""
 
     messages = [{"role": "user", "content": title_prompt}]
 
-    # Use gemini-2.5-flash for title generation (fast and cheap)
-    response = await query_model("google/gemini-2.5-flash", messages, timeout=30.0)
+    # Pick fast title model based on provider
+    if provider in ("nvidia_nim", "nvidia"):
+        title_model = "meta/llama-3.3-70b-instruct"
+    else:
+        title_model = "google/gemini-2.5-flash"
+
+    response = await query_model(title_model, messages, timeout=30.0, provider=provider)
 
     if response is None:
         # Fallback to a generic title
