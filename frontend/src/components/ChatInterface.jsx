@@ -11,6 +11,7 @@ export default function ChatInterface({
   isLoading,
 }) {
   const [input, setInput] = useState('');
+  const [provider, setProvider] = useState('openrouter');
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -24,7 +25,7 @@ export default function ChatInterface({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
-      onSendMessage(input);
+      onSendMessage(input, provider);
       setInput('');
     }
   };
@@ -122,22 +123,39 @@ export default function ChatInterface({
 
       {conversation.messages.length === 0 && (
         <form className="input-form" onSubmit={handleSubmit}>
-          <textarea
-            className="message-input"
-            placeholder="Ask your question... (Shift+Enter for new line, Enter to send)"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isLoading}
-            rows={3}
-          />
-          <button
-            type="submit"
-            className="send-button"
-            disabled={!input.trim() || isLoading}
-          >
-            Send
-          </button>
+          <div className="input-controls">
+            <div className="provider-selector">
+              <label htmlFor="provider-select" className="provider-label">Provider:</label>
+              <select
+                id="provider-select"
+                className="provider-select"
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                disabled={isLoading}
+              >
+                <option value="openrouter">OpenRouter (GPT-4o, Gemini, Claude, GLM)</option>
+                <option value="nvidia_nim">NVIDIA NIM (Nemotron, Llama 3.3, Mistral, DeepSeek)</option>
+              </select>
+            </div>
+            <div className="input-row">
+              <textarea
+                className="message-input"
+                placeholder="Ask your question... (Shift+Enter for new line, Enter to send)"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isLoading}
+                rows={3}
+              />
+              <button
+                type="submit"
+                className="send-button"
+                disabled={!input.trim() || isLoading}
+              >
+                Send
+              </button>
+            </div>
+          </div>
         </form>
       )}
     </div>

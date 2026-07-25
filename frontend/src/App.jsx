@@ -57,7 +57,7 @@ function App() {
     setCurrentConversationId(id);
   };
 
-  const handleSendMessage = async (content) => {
+  const handleSendMessage = async (content, provider = 'openrouter') => {
     if (!currentConversationId) return;
 
     setIsLoading(true);
@@ -90,7 +90,7 @@ function App() {
       }));
 
       // Send message with streaming
-      await api.sendMessageStream(currentConversationId, content, (eventType, event) => {
+      await api.sendMessageStream(currentConversationId, content, provider, (eventType, event) => {
         switch (eventType) {
           case 'stage1_start':
             setCurrentConversation((prev) => {
