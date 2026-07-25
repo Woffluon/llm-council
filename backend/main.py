@@ -1,15 +1,17 @@
 """FastAPI backend for LLM Council."""
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import uuid
 import json
 import asyncio
+import traceback
 
 from . import storage
+from .logger import logger
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
@@ -22,6 +24,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global unhandled exception handler for all API requests."""
+    error_trace = traceback.format_exc()
+    logger.error(f"[Global Error] Unhandled Exception on {request.method} {request.url.path}:\n{error_trace}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal Server Error",
+            "error": str(exc),
+            "path": request.url.path
+        }
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """HTTP exception handler for status code exceptions."""
+    logger.warning(f"[HTTP {exc.status_code}] {request.method} {request.url.path}: {exc.detail}")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "status_code": exc.status_code
+        }
+    )
 
 
 class CreateConversationRequest(BaseModel):

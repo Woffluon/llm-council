@@ -2,6 +2,7 @@
 
 from typing import List, Dict, Any, Tuple, Optional
 from .openrouter import query_models_parallel, query_model
+from .logger import logger
 from .config import (
     COUNCIL_MODELS,
     CHAIRMAN_MODEL,
@@ -43,6 +44,9 @@ async def stage1_collect_responses(
     messages = [{"role": "user", "content": user_query}]
     council_models, _ = resolve_models(provider, custom_council_models=custom_council_models)
 
+    logger.info(f"=== Stage 1 Started ===")
+    logger.info(f"Target Models: {council_models}")
+
     # Query all models in parallel
     responses = await query_models_parallel(council_models, messages, provider=provider)
 
@@ -55,6 +59,7 @@ async def stage1_collect_responses(
                 "response": response.get('content', '')
             })
 
+    logger.info(f"=== Stage 1 Complete: {len(stage1_results)}/{len(council_models)} models responded successfully ===")
     return stage1_results
 
 
@@ -122,6 +127,8 @@ FINAL RANKING:
 
 Now provide your evaluation and ranking:"""
 
+    logger.info(f"=== Stage 2 Started: Peer ranking anonymized responses ===")
+
     messages = [{"role": "user", "content": ranking_prompt}]
 
     council_models, _ = resolve_models(provider, custom_council_models=custom_council_models)
@@ -141,6 +148,7 @@ Now provide your evaluation and ranking:"""
                 "parsed_ranking": parsed
             })
 
+    logger.info(f"=== Stage 2 Complete: {len(stage2_results)} models submitted peer rankings ===")
     return stage2_results, label_to_model
 
 
@@ -196,19 +204,25 @@ Provide a clear, well-reasoned final answer that represents the council's collec
 
     _, chairman_model = resolve_models(provider, custom_chairman_model=custom_chairman_model)
 
+    logger.info(f"=== Stage 3 Started: Synthesis using Chairman model '{chairman_model}' ===")
+
     # Query the chairman model
     response = await query_model(chairman_model, messages, provider=provider)
 
     if response is None:
+        logger.error(f"=== Stage 3 Failed: Chairman model '{chairman_model}' returned no response ===")
         # Fallback if chairman fails
         return {
             "model": chairman_model,
             "response": "Error: Unable to generate final synthesis."
         }
 
+    final_text = response.get('content', '')
+    logger.info(f"=== Stage 3 Complete: Final synthesis generated ({len(final_text)} chars) ===")
+
     return {
         "model": chairman_model,
-        "response": response.get('content', '')
+        "response": final_text
     }
 
 

@@ -49,9 +49,11 @@ async def query_model(
         from .nvidia_nim import query_nvidia_model
         return await query_nvidia_model(model, messages, timeout=timeout)
 
+    from .logger import logger
+
     # Route 3: OpenRouter API
     if not OPENROUTER_API_KEY:
-        print(f"Error querying OpenRouter model {model}: OPENROUTER_API_KEY is missing or empty in .env.")
+        logger.error(f"[OpenRouter] Missing OPENROUTER_API_KEY in .env for model '{model}'")
         return None
 
     headers = {
@@ -64,6 +66,8 @@ async def query_model(
         "messages": messages,
     }
 
+    logger.info(f"[OpenRouter] Requesting model '{model}'...")
+
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
@@ -71,18 +75,22 @@ async def query_model(
                 headers=headers,
                 json=payload
             )
+            if response.is_error:
+                logger.error(f"[OpenRouter] HTTP {response.status_code} Error for model '{model}': {response.text}")
             response.raise_for_status()
 
             data = response.json()
             message = data['choices'][0]['message']
+            content = message.get('content') or ''
+            logger.info(f"[OpenRouter] Received response from model '{model}' ({len(content)} chars)")
 
             return {
-                'content': message.get('content'),
+                'content': content,
                 'reasoning_details': message.get('reasoning_details')
             }
 
     except Exception as e:
-        print(f"Error querying model {model}: {e}")
+        logger.error(f"[OpenRouter] Exception for model '{model}': {e}")
         return None
 
 
