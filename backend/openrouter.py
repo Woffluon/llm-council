@@ -1,7 +1,7 @@
 """OpenRouter API client for making LLM requests."""
 
 import httpx
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from .config import OPENROUTER_API_KEY, OPENROUTER_API_URL
 
 
@@ -98,17 +98,17 @@ async def query_models_parallel(
     models: List[str],
     messages: List[Dict[str, str]],
     provider: Optional[str] = None
-) -> Dict[str, Optional[Dict[str, Any]]]:
+) -> List[Tuple[str, Optional[Dict[str, Any]]]]:
     """
     Query multiple models in parallel.
 
     Args:
         models: List of model identifiers
         messages: List of message dicts to send to each model
-        provider: Optional provider name ('openrouter' or 'nvidia_nim')
+        provider: Optional provider name ('openrouter', 'nvidia_nim', 'gemini')
 
     Returns:
-        Dict mapping model identifier to response dict (or None if failed)
+        List of tuples: [(model_identifier, response_dict), ...]
     """
     import asyncio
 
@@ -118,5 +118,5 @@ async def query_models_parallel(
     # Wait for all to complete
     responses = await asyncio.gather(*tasks)
 
-    # Map models to their responses
-    return {model: response for model, response in zip(models, responses)}
+    # Return list of (model, response) pairs preserving duplicates
+    return list(zip(models, responses))
