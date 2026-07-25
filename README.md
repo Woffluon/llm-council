@@ -16,6 +16,7 @@ In a bit more detail, here is what happens when you submit a query:
 
 - **Multi-Provider Support**: Supports both **OpenRouter** and **NVIDIA NIM API** endpoints out of the box.
 - **Dynamic Provider Switcher**: Select between OpenRouter and NVIDIA NIM providers per-conversation directly from the UI.
+- **Model Customization UI**: Customize individual council member models (Stage 1 & 2) and the chairman model (Stage 3) dynamically per query directly in the interface.
 - **Windows & Unix Launchers**: Easy one-click startup scripts (`start.bat` for Windows with error handling, `start.sh` for Linux/macOS).
 - **Preset Council Configurations**: Curated default models for each provider (e.g. OpenAI, Gemini, Claude, GLM, Llama 3.3, Nemotron, DeepSeek R1).
 
